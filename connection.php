@@ -9,11 +9,14 @@
 
     // Environment variables (set via the host's dashboard, e.g. Render) take
     // priority -- this is how the production deployment supplies real creds.
+    // DB_SSL_CA is only set when the target database requires SSL (e.g. Aiven).
+    $db_ssl_ca = null;
     if (getenv('DB_HOST')) $db_host = getenv('DB_HOST');
     if (getenv('DB_PORT')) $db_port = (int) getenv('DB_PORT');
     if (getenv('DB_USER')) $db_user = getenv('DB_USER');
     if (getenv('DB_PASS')) $db_pass = getenv('DB_PASS');
     if (getenv('DB_NAME')) $db_name = getenv('DB_NAME');
+    if (getenv('DB_SSL_CA')) $db_ssl_ca = getenv('DB_SSL_CA');
 
     // config.local.php is gitignored and uploaded directly via FTP -- kept for
     // shared-hosting-style deployments (e.g. InfinityFree) that don't expose
@@ -22,7 +25,14 @@
         require __DIR__ . '/config.local.php';
     }
 
-    $database = new mysqli($db_host, $db_user, $db_pass, $db_name, $db_port);
+    if ($db_ssl_ca) {
+        $database = mysqli_init();
+        mysqli_ssl_set($database, NULL, NULL, $db_ssl_ca, NULL, NULL);
+        $database->real_connect($db_host, $db_user, $db_pass, $db_name, $db_port, NULL, MYSQLI_CLIENT_SSL);
+    } else {
+        $database = new mysqli($db_host, $db_user, $db_pass, $db_name, $db_port);
+    }
+
     if ($database->connect_error){
         die("Connection failed:  ".$database->connect_error);
     }
